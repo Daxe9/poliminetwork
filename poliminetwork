@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# check whether nmcli is installed or not
-echo "Ensure you have older version of openssl installed, such as openssl 1.1"
-
-
 MANAGER="nmcli"
 if command -v "$MANAGER" >/dev/null 2>&1; then
     echo "$MANAGER is installed."
@@ -42,20 +38,20 @@ if [ ${#available_networks[@]} -gt 0 ]; then
     done
      
     while true; do
-    # Prompt the user to enter network number
-    read -p "Enter your selected network(number): " choice 
+        # Get user selected network
+        read -p "Enter your selected network(number): " choice 
 
-    # Check if the choice is a valid number and smaller than the threshold
-    if [[ "$choice" =~ ^[0-9]+$ && "$choice" -le "${#available_networks[@]}" ]]; then
-        break
-    else
-        echo "Invalid choice. Please enter a number smaller than ${#available_networks[@]}."
-    fi
+        if [[ "$choice" =~ ^[0-9]+$ && "$choice" -le "${#available_networks[@]}" ]]; then
+            break
+        else
+            echo "Invalid choice. Please enter a number smaller than ${#available_networks[@]}."
+        fi
     done
 else
     echo "No target networks found."
 fi
 
+# Set Wifi SSID
 SSID=${available_networks[$((choice-1))]}
 # Get user identity
 IDENTITY=0
@@ -63,10 +59,8 @@ read -p "Enter your person code(codice persona): " IDENTITY
 if ! [[ "$IDENTITY" =~ ^[0-9]+$ ]]; then
     echo "Invalid person code!"
 fi
-echo $IDENTITY
 
 cert_path=
-
 read -p "Enter the certificate path: " cert_path
 
 # Check if the cert_path exists
@@ -77,20 +71,20 @@ if [ -e "$cert_path" ]; then
     fi
 else
     echo "The certificate path '$cert_path' does not exist"
-    exit 1  # Exit the script with status code 1 (indicating an error)
+    exit 1  
 fi
 
 password= 
-
 read -p "Enter your private key: " password
 
+# Get the directory where the certificate is located
 directory=$(dirname $cert_path)
 
-/usr/bin/openssl-1.1 pkcs12 -in $cert_path -out "$directory/eduroam-cert.pem" -clcerts -nokeys --passin pass:$password
+# Get the certificate and key
+openssl pkcs12 -in $cert_path -out "$directory/eduroam-cert.pem" -clcerts -nokeys -legacy --passin pass:$password
+openssl pkcs12 -in $cert_path -out "$directory/eduroam-key.pem" -nodes -nocerts -legacy --passin pass:$password
 
-/usr/bin/openssl-1.1 pkcs12 -in $cert_path -out "$directory/eduroam-key.pem" -nodes -nocerts --passin pass:$password
-
-
+# Create connection
 nmcli connection add type wifi ifname $INTERFACE con-name $SSID ssid $SSID \
                 wifi-sec.key-mgmt wpa-eap \
                 802-1x.eap tls \
